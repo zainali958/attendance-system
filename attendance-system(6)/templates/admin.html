@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 4px 0;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+        .stat-card {
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-card h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        .stat-card .icon {
+            font-size: 3rem;
+            opacity: 0.3;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
+        .user-status-active {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 12px;
+            border-radius: 15px;
+        }
+        .status-checked-in {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-checked-out {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-absent {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #f8f9fa;
+        }
+        .table td {
+            vertical-align: middle;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar p-0">
+                <div class="p-4">
+                    <h4 class="mb-4">
+                        <i class="bi bi-shield-lock"></i> Admin Panel
+                    </h4>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="#overview" data-bs-toggle="tab">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="#users" data-bs-toggle="tab">
+                            <i class="bi bi-people"></i> Users
+                        </a>
+                        <a class="nav-link" href="#attendance" data-bs-toggle="tab">
+                            <i class="bi bi-calendar-check"></i> Attendance Records
+                        </a>
+                        <a class="nav-link" href="#import" data-bs-toggle="tab">
+                            <i class="bi bi-upload"></i> Import Users
+                        </a>
+                        <a class="nav-link" href="#settings" data-bs-toggle="tab">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                        <hr class="my-3" style="border-color: rgba(255,255,255,0.2);">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4 bg-light" style="min-height: 100vh;">
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="tab-content">
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview">
+                        <h3 class="mb-4">
+                            <i class="bi bi-speedometer2"></i> Dashboard Overview
+                        </h3>
+                        
+                        <!-- Stats Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="stat-card position-relative" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                                    <i class="bi bi-people icon"></i>
+                                    <h6>Total Users</h6>
+                                    <h2 id="stat-total-users">{{ stats.total_users }}</h2>
+                                    <small>Registered employees</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card position-relative" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                                    <i class="bi bi-check-circle icon"></i>
+                                    <h6>Checked In</h6>
+                                    <h2 id="stat-checked-in">{{ stats.checked_in }}</h2>
+                                    <small><span id="stat-attendance-pct">{{ stats.attendance_percentage }}</span>% attendance</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card position-relative" style="background: linear-gradient(135deg, #17a2b8, #0dcaf0);">
+                                    <i class="bi bi-check-circle-fill icon"></i>
+                                    <h6>Checked Out</h6>
+                                    <h2 id="stat-checked-out">{{ stats.checked_out }}</h2>
+                                    <small>Completed day</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                                    <i class="bi bi-building icon"></i>
+                                    <h6>Office vs WFH</h6>
+                                    <h2 id="stat-office-wfh">{{ stats.office }}/{{ stats.wfh }}</h2>
+                                    <small>Office / Work From Home</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Today's Attendance Table -->
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-calendar-check"></i> Today's Attendance ({{ today }})
+                                </h5>
+                                <div>
+                                    <span class="badge bg-success me-2"><span id="badge-checked-in">{{ stats.checked_in }}</span> Checked In</span>
+                                    <span class="badge bg-info me-2"><span id="badge-checked-out">{{ stats.checked_out }}</span> Checked Out</span>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="refreshDashboardData()">
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="todayAttendance">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Department</th>
+                                                <th>Check-In Time</th>
+                                                <th>Check-Out Time</th>
+                                                <th>Working Hours</th>
+                                                <th>IP Address</th>
+                                                <th>Location</th>
+                                                <th>Work Type</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="todayAttendanceBody">
+                                            {% for record in today_attendance %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ record['Full Name'] }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">{{ record['Username'] }}</small>
+                                                </td>
+                                                <td>{{ record.get('Department', 'N/A') }}</td>
+                                                <td>
+                                                    {% if record.get('Check-In Time') %}
+                                                        <span class="text-success fw-bold">{{ record['Check-In Time'] }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if record.get('Check-Out Time') %}
+                                                        <span class="text-danger fw-bold">{{ record['Check-Out Time'] }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if record.get('Working Hours') %}
+                                                        <span class="badge bg-success">{{ record['Working Hours'] }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">In progress</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <small>{{ record.get('IP Address', 'N/A') }}</small>
+                                                </td>
+                                                <td>
+                                                    <small>{{ record.get('City', '') }}, {{ record.get('Country', '') }}</small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge {% if record.get('Work Type') == 'Office' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+                                                        {{ record.get('Work Type', 'N/A') }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {% if record.get('Check-Out Time') %}
+                                                        <span class="status-checked-out">✓ Completed</span>
+                                                    {% elif record.get('Check-In Time') %}
+                                                        <span class="status-checked-in">● Working</span>
+                                                    {% else %}
+                                                        <span class="status-pending">○ Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                            
+                                            {% if not today_attendance %}
+                                            <tr>
+                                                <td colspan="9" class="text-center text-muted py-4">
+                                                    <i class="bi bi-info-circle"></i> No attendance records for today yet
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Users Tab -->
+                    <div class="tab-pane fade" id="users">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h3><i class="bi bi-people"></i> User Management</h3>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                <i class="bi bi-plus-circle"></i> Add New User
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="usersTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Full Name</th>
+                                                <th>Email</th>
+                                                <th>Department</th>
+                                                <th>Designation</th>
+                                                <th>Phone</th>
+                                                <th>IP Address</th>
+                                                <th>Status</th>
+                                                <th>Role</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for user in all_users %}
+                                            <tr>
+                                                <td><strong>{{ user['Username'] }}</strong></td>
+                                                <td>{{ user['Full Name'] }}</td>
+                                                <td>{{ user.get('Email', 'N/A') }}</td>
+                                                <td>{{ user.get('Department', 'N/A') }}</td>
+                                                <td>{{ user.get('Designation', 'N/A') }}</td>
+                                                <td>{{ user.get('Phone', 'N/A') }}</td>
+                                                <td>{{ user.get('IP Address', 'N/A') }}</td>
+                                                <td>
+                                                    <span class="user-status-active">Active</span>
+                                                </td>
+                                                <td>
+                                                    {% if user.get('Is Admin') == 'TRUE' %}
+                                                        <span class="badge bg-danger">Admin</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">User</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{{ url_for('view_user_attendance', username=user['Username']) }}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-eye"></i> View Attendance
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                                            onclick="openChangePasswordModal('{{ user['Username'] }}')">
+                                                        <i class="bi bi-key"></i> Change Password
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-info"
+                                                            onclick="openChangeIpModal('{{ user['Username'] }}', '{{ user.get('IP Address', '') }}')">
+                                                        <i class="bi bi-globe"></i> Change IP
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Records Tab -->
+                    <div class="tab-pane fade" id="attendance">
+                        <h3 class="mb-4"><i class="bi bi-calendar-check"></i> Attendance Records</h3>
+                        
+                        <div class="card">
+                            <div class="card-body">
+                                <form class="row g-3 mb-4" id="dateFilterForm" onsubmit="return submitDateFilter()">
+                                    <input type="hidden" id="dateFilterBaseUrl" value="{{ url_for('view_attendance_by_date', date='__DATE__') }}">
+                                    <div class="col-auto">
+                                        <label class="form-label fw-bold">Select Date</label>
+                                        <input type="date" id="attendanceDateInput" name="date" class="form-control" value="{{ today }}">
+                                    </div>
+                                    <div class="col-auto">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button type="submit" class="btn btn-primary d-block">
+                                            <i class="bi bi-search"></i> View Records
+                                        </button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <label class="form-label">&nbsp;</label>
+                                        <a href="{{ url_for('view_attendance_by_date', date=today) }}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-calendar-check"></i> Today's Records
+                                        </a>
+                                    </div>
+                                </form>
+                                
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Select a date and click "View Records" to see attendance for that day.
+                                    You can also click on any user's name in the Users tab to see their complete attendance history.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Import Users Tab -->
+                    <div class="tab-pane fade" id="import">
+                        <h3 class="mb-4"><i class="bi bi-upload"></i> Import Users</h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-file-earmark-spreadsheet"></i> Upload CSV File
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form method="POST" action="{{ url_for('import_users') }}" enctype="multipart/form-data">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Select CSV File</label>
+                                                <input type="file" name="file" class="form-control" accept=".csv" required>
+                                                <div class="form-text mt-2">
+                                                    <strong>Required columns:</strong> Username, Password, Full Name, Email<br>
+                                                    <strong>Optional columns:</strong> Department, Designation, Phone
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-upload"></i> Import Users
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-file-text"></i> Sample CSV Format
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <pre class="bg-light p-3 rounded" style="font-size: 12px;">
+Username,Password,Full Name,Email,Department,Designation,Phone
+john,password123,John Doe,john@company.com,Engineering,Developer,+1234567890
+jane,password123,Jane Smith,jane@company.com,Marketing,Manager,+0987654321
+bob,Welcome123,Bob Wilson,bob@company.com,Sales,Executive,+1122334455</pre>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="downloadSampleCSV()">
+                                            <i class="bi bi-download"></i> Download Sample CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div class="tab-pane fade" id="settings">
+                        <h3 class="mb-4"><i class="bi bi-gear"></i> System Settings</h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Google Sheets Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Spreadsheet Name:</strong> Attendance System</p>
+                                        <p><strong>Users Sheet:</strong> Contains all employee data</p>
+                                        <p><strong>Attendance Sheet:</strong> Contains check-in/check-out records</p>
+                                        <p><strong>Connection Status:</strong> 
+                                            <span class="badge bg-success">Connected</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">System Statistics</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Total Registered Users:</strong> {{ stats.total_users }}</p>
+                                        <p><strong>Checked In Today:</strong> {{ stats.checked_in }}</p>
+                                        <p><strong>Checked Out Today:</strong> {{ stats.checked_out }}</p>
+                                        <p><strong>Attendance Rate:</strong> {{ stats.attendance_percentage }}%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-plus"></i> Add New User
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('add_user') }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Username *</label>
+                            <input type="text" name="username" class="form-control" placeholder="Enter username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Password *</label>
+                            <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Full Name *</label>
+                            <input type="text" name="full_name" class="form-control" placeholder="Enter full name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email *</label>
+                            <input type="email" name="email" class="form-control" placeholder="Enter email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <input type="text" name="department" class="form-control" placeholder="Enter department">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Designation</label>
+                            <input type="text" name="designation" class="form-control" placeholder="Enter designation">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control" placeholder="Enter phone number">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">IP Address</label>
+                            <input type="text" name="ip_address" class="form-control" placeholder="e.g. 192.168.1.10">
+                            <small class="text-muted">Optional. If set, this user can only log in from this exact IP.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Add User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="bi bi-key"></i> Change Password for <span id="changePasswordUsername"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" id="changePasswordForm" action="">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">New Password *</label>
+                            <input type="password" name="new_password" class="form-control" placeholder="Enter new password" minlength="6" required>
+                            <small class="text-muted">At least 6 characters.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-check-circle"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change IP Modal -->
+    <div class="modal fade" id="changeIpModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info">
+                    <h5 class="modal-title">
+                        <i class="bi bi-globe"></i> Change IP for <span id="changeIpUsername"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" id="changeIpForm" action="">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Registered IP Address</label>
+                            <input type="text" name="new_ip" id="changeIpInput" class="form-control" placeholder="e.g. 192.168.1.10">
+                            <small class="text-muted">Optional. Leave blank to remove the IP restriction, so this user can log in from any IP.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-info">
+                            <i class="bi bi-check-circle"></i> Update IP
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        function openChangePasswordModal(username) {
+            document.getElementById('changePasswordUsername').innerText = username;
+            document.getElementById('changePasswordForm').action =
+                "{{ url_for('change_user_password', username='__USERNAME__') }}".replace('__USERNAME__', encodeURIComponent(username));
+            var modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+            modal.show();
+        }
+
+        function openChangeIpModal(username, currentIp) {
+            document.getElementById('changeIpUsername').innerText = username;
+            document.getElementById('changeIpInput').value = currentIp || '';
+            document.getElementById('changeIpForm').action =
+                "{{ url_for('change_user_ip', username='__USERNAME__') }}".replace('__USERNAME__', encodeURIComponent(username));
+            var modal = new bootstrap.Modal(document.getElementById('changeIpModal'));
+            modal.show();
+        }
+
+        function submitDateFilter() {
+            var dateInput = document.getElementById('attendanceDateInput');
+            var baseUrl = document.getElementById('dateFilterBaseUrl').value;
+            var selectedDate = dateInput.value;
+            if (!selectedDate) {
+                return false;
+            }
+            window.location.href = baseUrl.replace('__DATE__', selectedDate);
+            return false; // stop the native GET submit so it doesn't append a stray ?date= query
+        }
+
+        var attendanceTable;
+
+        $(document).ready(function() {
+            // Initialize DataTables
+            attendanceTable = $('#todayAttendance').DataTable({
+                pageLength: 25,
+                order: [[1, 'asc']],
+                language: {
+                    search: "🔍 Search:",
+                    lengthMenu: "Show _MENU_ records per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ records"
+                }
+            });
+            
+            $('#usersTable').DataTable({
+                pageLength: 25,
+                order: [[1, 'asc']],
+                language: {
+                    search: "🔍 Search:",
+                    lengthMenu: "Show _MENU_ records per page"
+                }
+            });
+            
+            // Auto-refresh the dashboard data every 60 seconds via AJAX.
+            // Unlike location.reload(), this never closes open modals,
+            // clears typed input, or resets the table's sort/search/page.
+            setInterval(refreshDashboardData, 60000);
+        });
+
+        function refreshDashboardData() {
+            // Don't disrupt the admin if they're mid-task
+            var modalOpen = document.querySelector('.modal.show');
+            var activeEl = document.activeElement;
+            var isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+            if (modalOpen || isTyping) {
+                return;
+            }
+
+            fetch("{{ url_for('admin_stats_json') }}")
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    updateStatCards(data.stats);
+                    updateAttendanceTable(data.attendance);
+                })
+                .catch(function(err) {
+                    console.error('Dashboard refresh failed:', err);
+                });
+        }
+
+        function updateStatCards(stats) {
+            document.getElementById('stat-total-users').innerText = stats.total_users;
+            document.getElementById('stat-checked-in').innerText = stats.checked_in;
+            document.getElementById('stat-attendance-pct').innerText = stats.attendance_percentage;
+            document.getElementById('stat-checked-out').innerText = stats.checked_out;
+            document.getElementById('stat-office-wfh').innerText = stats.office + '/' + stats.wfh;
+            document.getElementById('badge-checked-in').innerText = stats.checked_in;
+            document.getElementById('badge-checked-out').innerText = stats.checked_out;
+        }
+
+        function updateAttendanceTable(records) {
+            var rows = records.map(function(r) {
+                var checkIn = r['Check-In Time']
+                    ? '<span class="text-success fw-bold">' + r['Check-In Time'] + '</span>'
+                    : '<span class="text-muted">-</span>';
+                var checkOut = r['Check-Out Time']
+                    ? '<span class="text-danger fw-bold">' + r['Check-Out Time'] + '</span>'
+                    : '<span class="text-muted">-</span>';
+                var hours = r['Working Hours']
+                    ? '<span class="badge bg-success">' + r['Working Hours'] + '</span>'
+                    : '<span class="text-muted">In progress</span>';
+                var workType = r['Work Type'] || 'N/A';
+                var workBadge = '<span class="badge ' + (workType === 'Office' ? 'bg-primary' : 'bg-warning text-dark') + '">' + workType + '</span>';
+                var status = r['Check-Out Time']
+                    ? '<span class="status-checked-out">✓ Completed</span>'
+                    : (r['Check-In Time'] ? '<span class="status-checked-in">● Working</span>' : '<span class="status-pending">○ Pending</span>');
+
+                return [
+                    '<strong>' + (r['Full Name'] || '') + '</strong><br><small class="text-muted">' + (r['Username'] || '') + '</small>',
+                    r['Department'] || 'N/A',
+                    checkIn,
+                    checkOut,
+                    hours,
+                    '<small>' + (r['IP Address'] || 'N/A') + '</small>',
+                    '<small>' + (r['City'] || '') + ', ' + (r['Country'] || '') + '</small>',
+                    workBadge,
+                    status
+                ];
+            });
+
+            // Rebuild the DataTable's rows in place — preserves current
+            // search term, sort order, and page position.
+            attendanceTable.clear();
+            if (rows.length) {
+                attendanceTable.rows.add(rows);
+            }
+            attendanceTable.draw(false);
+        }
+        
+        function downloadSampleCSV() {
+            const csvContent = "Username,Password,Full Name,Email,Department,Designation,Phone\n" +
+                             "john,password123,John Doe,john@company.com,Engineering,Developer,+1234567890\n" +
+                             "jane,password123,Jane Smith,jane@company.com,Marketing,Manager,+0987654321\n" +
+                             "bob,Welcome123,Bob Wilson,bob@company.com,Sales,Executive,+1122334455";
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sample_users.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
