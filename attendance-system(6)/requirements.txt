@@ -8,3 +8,4 @@ Werkzeug==3.0.3
 pytz==2024.1
 cachetools==5.3.1
 gunicorn==22.0.0
+serverless-wsgi==3.1.0
